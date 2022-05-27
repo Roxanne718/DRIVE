@@ -10,5 +10,5 @@ elif(args.method=='morphology'):
     pass
 
 elif(args.method=='pplb'):
-    pass
+    methods.matchedFiltering(args[0])
 
