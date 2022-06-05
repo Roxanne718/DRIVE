@@ -213,57 +213,43 @@ def grayStretch(img, m=60.0/255, e=8.0):
     ans = np.array(ans, np.uint8)
     return ans
 
-def main_function(path):
-    numList = list(range(1, 21))
-    for num in numList:
-        # 原图
-        srcImg = cv2.imread(path + ('%02d' % num) + '_test.tif', cv2.IMREAD_ANYDEPTH | cv2.IMREAD_ANYCOLOR)
-
-        # 标定图， 计算DICE
-        # grountruth = cv2.imread(path + ('%02d' % num) + '_manual1.gif', cv2.IMREAD_GRAYSCALE)
-        image = Image.open(path + ('%02d' % num) + '_manual1.gif')
-        grountruth = np.array(image)
-        print(path + ('%02d' % num) + '_manual1.gif')
-        cv2.imwrite("cv.jpg", grountruth)
-        # G通道输出
-        grayImg = cv2.split(srcImg)[1]
-
-        # 提取掩膜
-        ret0, th0 = cv2.threshold(grayImg, 30, 255, cv2.THRESH_BINARY)
-        mask = cv2.erode(th0, np.ones((7, 7), np.uint8))
-        # showImg("mask", mask)
-
-        # 高斯滤波，抑制噪声
-        blurImg = cv2.GaussianBlur(grayImg, (5, 5), 0)
-        # cv2.imwrite("blurImg.png", blurImg)
-
-        # CLAHE 光均衡化+对比度增强 ，对比度受限的自适应直方图均衡化
-        clahe = cv2.createCLAHE(clipLimit=2, tileGridSize=(10, 10))
-        claheImg = clahe.apply(blurImg)
-        cv2.imwrite("claheImg.png", claheImg)
-
-        # 同态滤波 光均衡化
-        # homoImg = homofilter(blurImg)
-
-        preMFImg = adjust_gamma(claheImg, gamma=1.5)
-        filters = build_filters2()
-        # showKern(filters)
-        gaussMFImg = process(preMFImg, filters)
-        cv2.imwrite("gaussMFImg.png", gaussMFImg)
-        gaussMFImg_mask = pass_mask(mask, gaussMFImg)
-        cv2.imwrite("gaussMFImg_mask.png", gaussMFImg_mask)
-        grayStretchImg = grayStretch(gaussMFImg_mask, m=30.0 / 255, e=8)
-        cv2.imwrite("grayStretchImg.png", grayStretchImg)
-
-        # 二值化
-        ret1, th1 = cv2.threshold(grayStretchImg, 30, 255, cv2.THRESH_OTSU)
-        predictImg = th1.copy()
-        cv2.imwrite("predictImg.png", predictImg)
-        dice, Jaccard = calcDice(predictImg, grountruth)
-        print(num,'',dice, Jaccard)
-        wtf = np.hstack([srcImg, cv2.cvtColor(grountruth,cv2.COLOR_GRAY2BGR),cv2.cvtColor(predictImg,cv2.COLOR_GRAY2BGR)])
-        cv2.imwrite(('m%02d' % num)+'.png', wtf)
-        cv2.waitKey()
-
+def run(img_path, mask_path):
     
-    
+    # 原图
+    srcImg = cv2.imread(img_path, cv2.IMREAD_ANYDEPTH | cv2.IMREAD_ANYCOLOR)
+
+    # G通道输出
+    grayImg = cv2.split(srcImg)[1]
+
+    # 提取掩膜
+    ret0, th0 = cv2.threshold(grayImg, 30, 255, cv2.THRESH_BINARY)
+    mask = cv2.erode(th0, np.ones((7, 7), np.uint8))
+
+    # 高斯滤波，抑制噪声
+    blurImg = cv2.GaussianBlur(grayImg, (5, 5), 0)
+
+    # CLAHE 光均衡化+对比度增强 ，对比度受限的自适应直方图均衡化
+    clahe = cv2.createCLAHE(clipLimit=2, tileGridSize=(10, 10))
+    claheImg = clahe.apply(blurImg)
+
+    # 同态滤波 光均衡化
+    # homoImg = homofilter(blurImg)
+
+    preMFImg = adjust_gamma(claheImg, gamma=1.5)
+    filters = build_filters2()
+    gaussMFImg = process(preMFImg, filters)
+    gaussMFImg_mask = pass_mask(mask, gaussMFImg)
+    grayStretchImg = grayStretch(gaussMFImg_mask, m=30.0 / 255, e=8)
+
+    # 二值化
+    ret1, th1 = cv2.threshold(grayStretchImg, 30, 255, cv2.THRESH_OTSU)
+    predictImg = th1.copy()
+
+    mask = np.array(Image.open(mask_path))
+    predictImg[mask==0]=0
+
+    return predictImg
+
+
+
+
