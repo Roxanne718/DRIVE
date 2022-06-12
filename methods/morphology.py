@@ -21,7 +21,7 @@ def CVShow(img, title = 'unNamed', max_h = 950, max_w = 1800):
     return key
  
 def enhance(img):
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(2, 2))  # 用于生成自适应均衡化图像
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(3, 3))  # 用于生成自适应均衡化图像
     return clahe.apply(img)
  
 def Morph_Operate(img):
@@ -43,8 +43,8 @@ def Vessels_Mask(f5):
             cv2.drawContours(mask, [cnt], -1, 0, -1)
     im = cv2.bitwise_and(f5, f5, mask=mask)
     ret, fin = cv2.threshold(im, 15, 255, cv2.THRESH_BINARY_INV)
-    newfin = cv2.erode(fin, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)), iterations=1)
-    return newfin
+    # newfin = cv2.erode(fin, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2)), iterations=1)
+    return fin
  
 def Vessels_Extract(newfin):
     fundus_eroded = cv2.bitwise_not(newfin)
@@ -53,13 +53,12 @@ def Vessels_Extract(newfin):
     for cnt in xcontours:
         shape = "unidentified"
         peri = cv2.arcLength(cnt, True)
-        approx = cv2.approxPolyDP(cnt, 0.04 * peri, False)
+        approx = cv2.approxPolyDP(cnt, 0.07 * peri, False)
         condition = len(approx) > 4 and cv2.contourArea(cnt) <= 3000 and cv2.contourArea(cnt) >= 100
         shape = "circle" if condition else "veins"
         if shape == "circle": cv2.drawContours(xmask, [cnt], -1, 0, -1)
     finimage = cv2.bitwise_and(fundus_eroded, fundus_eroded, mask=xmask)
-    blood_vessels = cv2.bitwise_not(finimage)
-    return blood_vessels
+    return finimage
  
 def Vessel_Segmentation_Demo(path):
     img = cv2.imread(path)
@@ -70,13 +69,6 @@ def Vessel_Segmentation_Demo(path):
     f5 = enhance(f4)
     newfin = Vessels_Mask(f5)
     blood_vessels = Vessels_Extract(newfin)
-    tmp = blood_vessels.copy()
-    blood_vessels[tmp==255]=0
-    blood_vessels[tmp==0]=255
-    result1 = np.hstack([contrast_enhanced_green, morph_contrast_enhanced_green])
-    result2 = np.hstack([f4, f5])
-    result3 = np.hstack([newfin, blood_vessels])
-    # return np.vstack([result1, result2, result3])
     return blood_vessels
  
 def run(img_path, mask_path):
